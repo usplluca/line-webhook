@@ -7,7 +7,11 @@
   },
   "dependencies": {
     "express": "^4.18.2",
-    "line-bot-sdk": "6.7.0",
-    "node-fetch": "^3.3.2"
-  }
+    "node-fetch": "^3.3.2",
+    "line-bot-sdk": "npm:@line/bot-sdk@7.4.0"
+  },
+  "resolutions": {
+    "line-bot-sdk": "npm:@line/bot-sdk@7.4.0"
+  },
+  "license": "MIT"
 }
