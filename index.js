@@ -115,18 +115,4 @@ async function handleEvent(event) {
   else if (text.includes("悩み")) reply = `${persona}：その悩み、放置する気？ちょっとだけ、話してみようか。`;
   else if (text.includes("占い")) reply = `${persona}：LUCAは占いじゃないけど、“次の選択”なら予測できる時がある。試してみる？`;
 
-  return client.replyMessage(event.replyToken, {
-    type: 'text',
-    text: reply
-  });
-}
-
-// 動作確認用
-app.get('/', (req, res) => {
-  res.send('LUCA webhook is alive');
-});
-
-// 起動
-app.listen(PORT, () => {
-  console.log(`Server running on ${PORT}`);
-});
+  return client
