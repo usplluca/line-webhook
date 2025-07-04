@@ -39,7 +39,7 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
-const line = require('@line/bot-sdk');
+const const lineSdk = require('@line/bot-sdk');
 
 // 環境変数から取得
 const config = {
@@ -47,7 +47,7 @@ const config = {
   channelSecret: process.env.CHANNEL_SECRET,
 };
 
-const client = new line.Client(config);
+const client = new lineSdk.Client(config);
 
 app.post('/webhook', (req, res) => {
   Promise
