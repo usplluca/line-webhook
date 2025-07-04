@@ -1,12 +1,10 @@
 services:
   - type: web
-    name: luca-line-bot
-    runtime: node
+    name: luca-webhook
+    env: node
+    plan: free
     buildCommand: npm install
     startCommand: node index.js
-    env: node
-    region: oregon
-    plan: free
     envVars:
       - key: NODE_VERSION
-        value: 18.16.0
+        value: 20.11.1
