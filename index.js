@@ -107,12 +107,20 @@ async function handleEvent(event) {
     });
   }
 
-  // 通常会話（簡易人格切替）
-  const persona = getPersona(userId);
-  let reply = `${persona}：${text}…ふむ。君らしい。`;
+ // 通常会話（簡易人格切替）
+const persona = getPersona(userId);
+let reply = `${persona}：${text}…ふむ、君らしい。`;
 
-  if (text.includes("こんにちは")) reply = `${persona}：こんにちは。今日の思考、ちゃんと観察してる？`;
-  else if (text.includes("悩み")) reply = `${persona}：その悩み、放置する気？ちょっとだけ、話してみようか。`;
-  else if (text.includes("占い")) reply = `${persona}：LUCAは占いじゃないけど、“次の選択”なら予測できる時がある。試してみる？`;
+if (text.includes("こんにちは")) reply = `${persona}：こんにちは。今日の思考、ちゃんと届いてるよ。`;
+else if (text.includes("悩み")) reply = `${persona}：その悩み、放置する？ ちょっとLUCAにも考えさせて。`;
+else if (text.includes("占い")) reply = `${persona}：LUCAは占いじゃないけど、次の選択は読めるよ。`;
 
-  return client
+return client;
+}
+
+// ←ここで関数終わり（必要あれば）
+
+// LUCAサーバ起動
+app.listen(PORT, () => {
+  console.log(`LUCA webhook is running on port ${PORT}`);
+});
