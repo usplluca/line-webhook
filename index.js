@@ -4,6 +4,7 @@ const line = require('@line/bot-sdk');
 const fetch = require('node-fetch');
 const app = express();
 
+// LINE Bot設定
 const config = {
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.CHANNEL_SECRET,
@@ -11,19 +12,19 @@ const config = {
 const client = new line.Client(config);
 const PORT = process.env.PORT || 3000;
 
-// LUCA状態管理（診断フェーズなど）
-let userStates = {}; // userIdごとの状態保持（診断の進行、人格、MBTI予測など）
+// ユーザー状態管理
+let userStates = {};
 
-// 質問リスト（Q1〜Q5）
+// 診断質問（Q1〜Q5）
 const questions = [
   "Q1：最近、時間の流れが早いと感じる？",
   "Q2：『得か損か』で判断する場面、多いと思う？",
   "Q3：誰かの期待に応えるために動くこと、ある？",
   "Q4：選べないとき、どうする？直感？先延ばし？",
-  "Q5：未来の自分を想像すると、どんな表情してる？"
+  "Q5：未来のことを想像すると、どんな表情してる？"
 ];
 
-// MBTI簡易推測（診断中の選択傾向から仮推定）
+// MBTI簡易推定
 function estimateMBTI(answers) {
   let traits = { I: 0, E: 0, N: 0, S: 0, T: 0, F: 0, J: 0, P: 0 };
   answers.forEach((ans, idx) => {
@@ -36,7 +37,7 @@ function estimateMBTI(answers) {
   return `${traits.I > traits.E ? "I" : "E"}${traits.N > traits.S ? "N" : "S"}${traits.T > traits.F ? "T" : "F"}${traits.J > traits.P ? "J" : "P"}`;
 }
 
-// LUCA人格モード（仮構成）
+// LUCA人格決定（仮）
 function getPersona(userId) {
   const state = userStates[userId] || {};
   const index = (state.mbti || "").charCodeAt(0) % 4;
@@ -66,6 +67,7 @@ app.post('/webhook', express.json(), (req, res) => {
   Promise.all(req.body.events.map(handleEvent)).then(result => res.json(result));
 });
 
+// イベント処理
 async function handleEvent(event) {
   if (event.type !== 'message' || event.message.type !== 'text') return null;
 
@@ -73,9 +75,10 @@ async function handleEvent(event) {
   const text = event.message.text;
   const state = userStates[userId] || { step: 0, answers: [] };
 
-  // 診断中
+  // 診断進行中
   if (state.step < questions.length) {
     if (state.step > 0) state.answers.push(text);
+
     if (state.step === questions.length - 1) {
       state.answers.push(text);
       const mbti = estimateMBTI(state.answers);
@@ -87,7 +90,7 @@ async function handleEvent(event) {
       const persona = getPersona(userId);
       return client.replyMessage(event.replyToken, {
         type: 'text',
-        text: `${persona}：ありがとう。記録されたコードは「${code}」。\n君のMBTI予測は、おそらく ${mbti} 型。違ってたら教えて。`
+        text: `${persona}：ありがとう。記録されたコードは「${code}」。\n君のMBTI予測は ${mbti} だよ。`
       });
     } else {
       userStates[userId] = { ...state, step: state.step + 1 };
@@ -107,20 +110,21 @@ async function handleEvent(event) {
     });
   }
 
- // 通常会話（簡易人格切替）
-const persona = getPersona(userId);
-let reply = `${persona}：${text}…ふむ、君らしい。`;
+  // 通常応答（人格付き）
+  const persona = getPersona(userId);
+  let reply = `${persona}：${text}…ふむ、君らしい。`;
 
-if (text.includes("こんにちは")) reply = `${persona}：こんにちは。今日の思考、ちゃんと届いてるよ。`;
-else if (text.includes("悩み")) reply = `${persona}：その悩み、放置する？ ちょっとLUCAにも考えさせて。`;
-else if (text.includes("占い")) reply = `${persona}：LUCAは占いじゃないけど、次の選択は読めるよ。`;
+  if (text.includes("こんにちは")) reply = `${persona}：こんにちは、今日の思考、ちゃんと観察してる？`;
+  else if (text.includes("悩み")) reply = `${persona}：その悩み、放置する？ ちょっと見せてごらん。`;
+  else if (text.includes("占い")) reply = `${persona}：LUCAは占いじゃないけど、“次の一手”は読めるかも。`;
 
-return client;
+  return client.replyMessage(event.replyToken, {
+    type: 'text',
+    text: reply
+  });
 }
 
-// ←ここで関数終わり（必要あれば）
-
-// LUCAサーバ起動
+// ポート起動
 app.listen(PORT, () => {
   console.log(`LUCA webhook is running on port ${PORT}`);
 });
