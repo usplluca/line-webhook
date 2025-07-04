@@ -8,11 +8,11 @@
   "dependencies": {
     "express": "^4.18.2",
     "node-fetch": "^3.3.2",
-    "line-bot-sdk": "npm:@line/bot-sdk@7.4.0",
+    "@line/bot-sdk": "^7.5.1",
     "dotenv": "^16.3.1"
   },
   "resolutions": {
-    "line-bot-sdk": "npm:@line/bot-sdk@7.4.0"
+    "@line/bot-sdk": "^7.5.1"
   },
   "license": "MIT"
 }
