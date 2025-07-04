@@ -39,7 +39,7 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
-const const lineSdk = require('@line/bot-sdk');
+const lineSdk = require('@line/bot-sdk');
 
 // 環境変数から取得
 const config = {
