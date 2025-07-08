@@ -1,13 +1,15 @@
 {
   "name": "line-webhook",
   "version": "1.0.0",
-  "description": "",
+  "description": "LUCA Webhook for LINE",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "line-bot-sdk": "7.4.1"
+    "axios": "^1.6.8",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "line-bot-sdk": "^4.1.0"
   }
 }
