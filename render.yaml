@@ -1,9 +1,1 @@
-services:
-  - type: web
-    name: luca-webhook
-    env: node
-    plan: free
-    buildCommand: npm install
-    startCommand: node index.js
-    environment:
-      NODE_VERSION: 20
+
