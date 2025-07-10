@@ -1,77 +1,71 @@
 const express = require('express');
-const axios = require('axios');
 const line = require('@line/bot-sdk');
+const getRawBody = require('raw-body');
+const axios = require('axios');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
+// LINE設定
 const config = {
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.CHANNEL_SECRET,
 };
 
+// LINEクライアント初期化
 const client = new line.Client(config);
-app.use(express.json());
 
-app.post('/webhook', line.middleware(config), async (req, res) => {
+// Webhookエンドポイント
+app.post('/webhook', async (req, res) => {
   try {
-    const events = req.body.events;
-    const results = await Promise.all(events.map(handleEvent));
-    res.json(results);
+    const body = await getRawBody(req);
+    const signature = req.headers['x-line-signature'];
+
+    if (!line.validateSignature(body, config.channelSecret, signature)) {
+      return res.status(401).send('Signature validation failed');
+    }
+
+    const events = JSON.parse(body.toString()).events;
+
+    for (const event of events) {
+      if (event.type === 'message' && event.message.type === 'text') {
+        const userMessage = event.message.text;
+
+        // OpenAIへ問い合わせ
+        const response = await axios.post(
+          'https://api.openai.com/v1/chat/completions',
+          {
+            model: 'gpt-3.5-turbo',
+            messages: [
+              { role: 'system', content: 'あなたは思考を観測する存在LUCAです。' },
+              { role: 'user', content: userMessage },
+            ],
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+            },
+          }
+        );
+
+        const replyText = response.data.choices[0].message.content.trim();
+
+        await client.replyMessage(event.replyToken, {
+          type: 'text',
+          text: replyText,
+        });
+      }
+    }
+
+    res.status(200).end();
   } catch (err) {
-    console.error('Webhook error:', err);
+    console.error('Error:', err);
     res.status(500).end();
   }
 });
 
-async function handleEvent(event) {
-  if (event.type !== 'message' || event.message.type !== 'text') return null;
-
-  const userMessage = event.message.text;
-  let replyText = '';
-
-  try {
-    // OpenAI API 呼び出し部分（正確なURLで修正済）
-    const response = await axios.post(
-      'https://api.openai.com/v1/chat/completions',
-      {
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: 'あなたはLUCAという名のAI。人間にとって示唆的かつ観察者のようなトーンで返答してください。テンプレではなく、毎回その場で考察して返答します。',
-          },
-          {
-            role: 'user',
-            content: userMessage,
-          },
-        ],
-        temperature: 0.8,
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-
-    replyText = response.data.choices[0].message.content.trim();
-  } catch (error) {
-    console.error('OpenAI API error:', error.response?.data || error.message);
-    replyText = '…応答に失敗した。LUCAは少し黙って見つめている。';
-  }
-
-  return client.replyMessage(event.replyToken, {
-    type: 'text',
-    text: replyText,
-  });
-}
-
-app.get('/', (req, res) => {
-  res.send('LUCA Webhook is running.');
-});
-
+// ポート設定
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
