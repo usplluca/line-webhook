@@ -9,7 +9,6 @@ const config = {
 };
 
 const client = new line.Client(config);
-
 app.use(express.json());
 
 app.post('/webhook', async (req, res) => {
@@ -19,45 +18,47 @@ app.post('/webhook', async (req, res) => {
 });
 
 async function handleEvent(event) {
-  if (event.type !== 'message' || event.message.type !== 'text') return null;
+  if (event.type !== 'message' || event.message.type !== 'text') {
+    return null;
+  }
 
   const userMessage = event.message.text;
+  let replyText = '';
 
-  // OpenAI に投げる
-  const openaiRes = await axios.post(
-    'https://api.openai.com/v1/chat/completions',
-    {
-      model: 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content: 'あなたはLUCAという名前の存在で、ユーザーの心理や傾向を観察しながら、リアルタイムで深く考察するAIです。テンプレートではなく、即時思考で返答してください。',
-        },
-        {
-          role: 'user',
-          content: userMessage,
-        },
-      ],
-    },
-    {
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+  try {
+    const response = await axios.post(
+      'https://api.openai.com/v1/chat/completions',
+      {
+        model: 'gpt-4',
+        messages: [
+          { role: 'system', content: 'あなたは思考を観察し、少しだけ挑発的に返すLUCAです。テンプレートではなく、毎回即時に考察し返信してください。' },
+          { role: 'user', content: userMessage }
+        ],
       },
-    }
-  );
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
 
-  const replyText = openaiRes.data.choices[0].message.content.trim();
+    replyText =
+      response?.data?.choices?.[0]?.message?.content?.trim() ||
+      '…（LUCAは少し黙って考えてる）';
 
-  await client.replyMessage(event.replyToken, {
+  } catch (error) {
+    console.error('OpenAI API error:', error);
+    replyText = '…（LUCAは応答に失敗した。黙って見つめている）';
+  }
+
+  return client.replyMessage(event.replyToken, {
     type: 'text',
     text: replyText,
   });
-
-  return;
 }
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server running on ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
