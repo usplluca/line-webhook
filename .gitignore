@@ -1,0 +1,14 @@
+# node_modulesは無視する
+node_modules/
+
+# OSやエディタの一時ファイル
+.DS_Store
+*.log
+
+# GitHubに入れたくないファイル（必要に応じて）
+.env.local
+.env.development
+.env.test
+
+# Firebaseの秘密鍵を含むファイル（すでに Railwayに環境変数で渡すなら）
+firebase-key.json
