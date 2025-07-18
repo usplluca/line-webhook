@@ -2,23 +2,21 @@ const express = require('express');
 const line = require('@line/bot-sdk');
 const getRawBody = require('raw-body');
 const admin = require('firebase-admin');
-const app = express();
+require('dotenv').config();
 
-// LINE設定
+const app = express();
 const config = {
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.CHANNEL_SECRET,
 };
 const client = new line.Client(config);
 
-// Firebase認証
-const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
+// 🔧 Firebase初期化（JSON文字列から構文解析）
+const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG_JSON);
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+  credential: admin.credential.cert(firebaseConfig),
 });
-const db = admin.firestore();
 
-// 生のbodyを受け取る（署名検証に必要）
 app.post('/webhook', async (req, res) => {
   try {
     const body = await getRawBody(req);
@@ -31,33 +29,21 @@ app.post('/webhook', async (req, res) => {
     const events = JSON.parse(body.toString()).events;
     for (const event of events) {
       if (event.type === 'message' && event.message.type === 'text') {
-        const userMessage = event.message.text;
-        const replyToken = event.replyToken;
-
-        // Firestoreに保存（任意）
-        await db.collection('messages').add({
-          userId: event.source.userId,
-          message: userMessage,
-          timestamp: new Date(),
-        });
-
-        // 返信メッセージ
-        await client.replyMessage(replyToken, {
+        await client.replyMessage(event.replyToken, {
           type: 'text',
-          text: `LUCAからの返信：${userMessage}`,
+          text: 'LUCAが受信したよ：' + event.message.text,
         });
       }
     }
 
     res.status(200).send('OK');
   } catch (err) {
-    console.error('Webhook error:', err);
-    res.status(500).send('Error');
+    console.error('Error handling webhook:', err);
+    res.status(500).send('Internal Server Error');
   }
 });
 
-// Railway用ポート対応（ここ重要）
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
-  console.log(`✅ Server is running on port ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });
