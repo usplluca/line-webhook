@@ -1,25 +1,29 @@
 const express = require('express');
 const line = require('@line/bot-sdk');
-const admin = require('firebase-admin');
 const getRawBody = require('raw-body');
-const axios = require('axios');
+const admin = require('firebase-admin');
 
-// Firebase Base64から初期化
-const firebaseCredential = JSON.parse(
-  Buffer.from(process.env.FIREBASE_CREDENTIAL_B64, 'base64').toString('utf8')
-);
-admin.initializeApp({
-  credential: admin.credential.cert(firebaseCredential),
-});
+const app = express();
 
 const config = {
   channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
   channelSecret: process.env.CHANNEL_SECRET,
 };
 
+// LINEクライアント
 const client = new line.Client(config);
-const app = express();
 
+// Firebase初期化（B64 decode）
+const firebaseCredential = JSON.parse(
+  Buffer.from(process.env.FIREBASE_CREDENTIAL_B64, 'base64').toString()
+);
+if (!admin.apps.length) {
+  admin.initializeApp({
+    credential: admin.credential.cert(firebaseCredential),
+  });
+}
+
+// Webhook受信
 app.post('/webhook', async (req, res) => {
   try {
     const body = await getRawBody(req);
@@ -34,23 +38,18 @@ app.post('/webhook', async (req, res) => {
       if (event.type === 'message' && event.message.type === 'text') {
         await client.replyMessage(event.replyToken, {
           type: 'text',
-          text: `Echo: ${event.message.text}`,
+          text: `LUCAは見てるよ：「${event.message.text}」`,
         });
       }
     }
 
     res.status(200).send('OK');
   } catch (err) {
-    console.error(err);
-    res.status(500).send('Error');
+    console.error('Webhook error:', err);
+    res.status(500).send('Internal Server Error');
   }
 });
 
-app.get('/', (req, res) => {
-  res.send('LUCA webhook is alive');
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+app.listen(3000, () => {
+  console.log('Server running');
 });
