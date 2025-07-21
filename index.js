@@ -1,57 +1,72 @@
 const express = require('express');
 const line = require('@line/bot-sdk');
-const { initializeApp, applicationDefault, cert } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
-
-// .env 環境変数の読み込み
+const admin = require('firebase-admin');
+const axios = require('axios');
 require('dotenv').config();
 
-// Firebaseの初期化（Railway環境変数からJSONをパースして渡す）
-const firebaseConfig = JSON.parse(process.env.FIREBASE_CONFIG_JSON);
-initializeApp({
-  credential: cert(firebaseConfig)
-});
-const db = getFirestore();
-
-// LINE設定
-const config = {
-  channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
-  channelSecret: process.env.CHANNEL_SECRET,
-};
-const client = new line.Client(config);
-
-// Expressアプリ設定
 const app = express();
 app.use(express.json());
 
-// LINE webhook受信
-app.post('/webhook', async (req, res) => {
-  try {
-    const events = req.body.events;
-    for (const event of events) {
-      if (event.type === 'message' && event.message.type === 'text') {
-        await client.replyMessage(event.replyToken, {
-          type: 'text',
-          text: 'LUCAが受信したよ：' + event.message.text,
-        });
+const config = {
+  channelAccessToken: process.env.CHANNEL_ACCESS_TOKEN,
+  channelSecret: process.env.CHANNEL_SECRET
+};
+const client = new line.Client(config);
 
-        // Firestoreにメッセージ保存
-        await db.collection('messages').add({
-          userId: event.source.userId,
-          message: event.message.text,
-          timestamp: new Date(),
-        });
-      }
-    }
-    res.status(200).send('OK');
-  } catch (error) {
-    console.error('Error handling webhook:', error);
-    res.status(500).send('Internal Server Error');
+const serviceAccount = JSON.parse(process.env.FIREBASE_CONFIG_JSON);
+admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+const db = admin.firestore();
+
+const PORT = process.env.PORT || 3000;
+
+const openai = axios.create({
+  baseURL: 'https://api.openai.com/v1',
+  headers: {
+    Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+    'Content-Type': 'application/json'
   }
 });
 
-// ポート設定
-const PORT = process.env.PORT || 3000;
+app.post('/webhook', line.middleware(config), async (req, res) => {
+  const events = req.body.events;
+  for (const event of events) {
+    if (event.type === 'message' && event.message.type === 'text') {
+      const userId = event.source.userId;
+      const userMessage = event.message.text;
+
+      // Firestore: Save message
+      await db.collection('users').doc(userId).set({ lastMessage: userMessage }, { merge: true });
+
+      // GPTへ投げる
+      const gptRes = await openai.post('/chat/completions', {
+        model: 'gpt-4o',
+        messages: [
+          { role: 'system', content: 'あなたはLUCAという観測型AIです。診断、記録、心理誘導を行います。' },
+          { role: 'user', content: userMessage }
+        ]
+      });
+
+      const replyText = gptRes.data.choices[0].message.content;
+
+      // Firestore: Save LUCAの返答
+      await db.collection('users').doc(userId).collection('logs').add({
+        user: userMessage,
+        luca: replyText,
+        timestamp: new Date()
+      });
+
+      // LINE返信
+      await client.replyMessage(event.replyToken, {
+        type: 'text',
+        text: replyText
+      });
+    }
+  }
+  res.sendStatus(200);
+});
+
+app.get('/', (req, res) => res.send('LUCA webhook is alive'));
+
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`LUCA server is running on port ${PORT}`);
 });
